@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  InitSequence: call first in every API resource.
+  Sets: requestId (UUID) and ts (ISO-8601 UTC) as synapse-scope properties.
+  Read them elsewhere with ${properties.synapse.requestId} / ${properties.synapse.ts}
+-->
+<sequence name="InitSequence" xmlns="http://ws.apache.org/ns/synapse">
+    <script language="js"><![CDATA[
+        mc.setProperty("requestId", java.util.UUID.randomUUID().toString());
+        mc.setProperty("ts", new Date().toISOString());
+    ]]></script>
+</sequence>

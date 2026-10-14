@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MaskSequence: masking helper for logs.
+  Input : synapse property  maskInput
+  Output: synapse property  maskedValue   (first 3 + last 2 chars kept, e.g. 100*****01)
+  Values of 5 chars or fewer are fully masked. Never log the raw value.
+-->
+<sequence name="MaskSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+    <script language="js"><![CDATA[var v = mc.getProperty("maskInput");
+        var out = "";
+        if (v !== null && v !== undefined) {
+            v = String(v);
+            if (v.length <= 5) {
+                out = new Array(v.length + 1).join("*");
+            } else {
+                out = v.substring(0, 3) + new Array(v.length - 4).join("*") + v.substring(v.length - 2);
+            }
+        }
+        mc.setProperty("maskedValue", out);]]>
+    </script>
+</sequence>

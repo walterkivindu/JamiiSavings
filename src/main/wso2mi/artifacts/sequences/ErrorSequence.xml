@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ErrorSequence: the ONLY place an error response is built, for all three APIs.
+ 
+  Contract: before calling this sequence, set synapse properties
+      httpStatus  e.g. 404
+      errCode     e.g. ACCOUNT_NOT_FOUND
+      errMsg      e.g. Account not found
+  Also used as each API's faultSequence: if nothing was set (unexpected exception)
+  it defaults to 500 INTERNAL_ERROR, and logs the real cause server-side only.
+ 
+  Response shape (identical for DB / HTTP / SOAP backends):
+  {"error":{"code":"...","message":"...","requestId":"...","timestamp":"..."}}
+-->
+<sequence name="ErrorSequence" trace="disable" xmlns="http://ws.apache.org/ns/synapse">
+
+    <script language="js">
+        <![CDATA[if (!mc.getProperty("requestId")) { 
+        mc.setProperty("requestId", java.util.UUID.randomUUID().toString()); 
+        }
+        if (!mc.getProperty("ts")) { mc.setProperty("ts", new Date().toISOString()); }
+        if (!mc.getProperty("httpStatus")) { mc.setProperty("httpStatus", "500"); }
+        if (!mc.getProperty("errCode")) { mc.setProperty("errCode", "INTERNAL_ERROR"); }
+        if (!mc.getProperty("errMsg")) { mc.setProperty("errMsg", "An unexpected error occurred"); }]]>
+    </script>
+    <log category="ERROR" separator="|" logMessageID="false" logFullPayload="false">
+        <message>ERROR_RESPONSE</message>
+        <property name="requestId" expression="${properties.synapse.requestId}" />
+        <property name="status" expression="${properties.synapse.httpStatus}" />
+        <property name="code" expression="${properties.synapse.errCode}" />
+        <property name="synapseErrorMessage" expression="${properties.synapse.ERROR_MESSAGE}" />
+    </log>
+    <payloadFactory media-type="json" template-type="default">
+        <format>{"error":{"code":"${properties.synapse.errCode}","message":"${properties.synapse.errMsg}","requestId":"${properties.synapse.requestId}","timestamp":"${properties.synapse.ts}"}}</format>
+    </payloadFactory>
+    <property name="HTTP_SC" scope="axis2" type="STRING"
+        expression="${properties.synapse.httpStatus}" />
+    <property name="messageType" scope="axis2" type="STRING" value="application/json" />
+    <respond />
+</sequence>

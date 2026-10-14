@@ -1,0 +1,33 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: jamii-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: jamii
+      MYSQL_USER: jamii
+      MYSQL_PASSWORD: jamiipw
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ujamii", "-pjamiipw"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mi:
+    image: wso2/wso2mi:4.6.0
+    container_name: jamii-mi
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8290:8290"   # HTTP passthrough
+      - "8253:8253"   # HTTPS passthrough
+      - "9164:9164"   # Management API
+    volumes:
+      - ./target/JamiiSavings_1.0.0.car:/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/JamiiSavings_1.0.0.car:ro
+      - ./mi/lib/mysql-connector-j.jar:/home/wso2carbon/wso2mi-4.6.0/lib/mysql-connector-j.jar:ro
