@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  POST /loans/eligibility : JSON in -> SOAP (DNE Online Calculator.Divide) -> JSON out.
+  Mapping: monthlyInstallment       = Divide(requestedAmount, termMonths)    (SOAP backend)
+           maxAffordableInstallment = 50% x (monthlyIncome - monthlyObligations)  (computed here)
+           eligible                 = disposable income > 0 AND installment <= maxAffordable
+  Any SOAP Fault / non-200 becomes 502 UPSTREAM_FAULT in the shared error shape; fault XML is never returned.
+-->
+<api context="/loans" name="LoansAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/eligibility">
+        <inSequence>
+            <property name="backendStage" scope="default" type="STRING" value="VALIDATION"/>
+            <sequence key="InitSequence"/>
+            <!-- Validate + derive inputs. A body that is not JSON throws here -> faultSequence -> 400 -->
+            <script language="js"><![CDATA[
+                var b = mc.getPayloadJSON();
+                var err = null;
+                function num(v) { return typeof v === 'number' && isFinite(v); }
+                function whole(v) { return num(v) && Math.floor(v) === v; }
+                if (b === null || typeof b !== 'object' || Array.isArray(b)) {
+                    err = "Body must be a JSON object";
+                } else if (b.customerId === undefined || b.customerId === null || String(b.customerId).length === 0) {
+                    err = "customerId is required";
+                } else if (!num(b.monthlyIncome) || b.monthlyIncome < 0) {
+                    err = "monthlyIncome must be a non-negative number";
+                } else if (!num(b.monthlyObligations) || b.monthlyObligations < 0) {
+                    err = "monthlyObligations must be a non-negative number";
+                } else if (!whole(b.requestedAmount) || b.requestedAmount <= 0 || b.requestedAmount > 1000000000000) {
+                    err = "requestedAmount must be a whole number between 1 and 1000000000000";
+                } else if (!whole(b.termMonths) || b.termMonths < 1 || b.termMonths > 360) {
+                    err = "termMonths must be a whole number between 1 and 360";
+                }
+                if (err !== null) {
+                    mc.setProperty("loanValid", "false");
+                    mc.setProperty("errMsg", err);
+                    mc.setProperty("maskInput", b && b.customerId !== undefined ? String(b.customerId) : "");
+                } else {
+                    var disposable = b.monthlyIncome - b.monthlyObligations;
+                    mc.setProperty("loanValid", "true");
+                    mc.setProperty("customerId", String(b.customerId));
+                    mc.setProperty("maskInput", String(b.customerId));
+                    mc.setProperty("intA", String(b.requestedAmount));
+                    mc.setProperty("intB", String(b.termMonths));
+                    mc.setProperty("disposableIncome", String(Math.round(disposable * 100) / 100));
+                    mc.setProperty("maxAffordable", String(Math.round(Math.max(disposable, 0) * 50) / 100));
+                }
+            ]]></script>
+            <sequence key="MaskSequence"/>
+            <log category="INFO">
+                <message>REQUEST_IN</message>
+                <property name="api" value="LoansAPI"/>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="customerId" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <filter xpath="${properties.synapse.loanValid == 'true'}">
+                <then/>
+                <else>
+                    <property name="httpStatus" scope="default" type="STRING" value="400"/>
+                    <property name="errCode" scope="default" type="STRING" value="INVALID_REQUEST"/>
+                    <sequence key="ErrorSequence"/>
+                </else>
+            </filter>
+
+            <!-- REST/JSON -> SOAP 1.1 -->
+            <payloadFactory media-type="xml" template-type="default">
+                <format><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/"><soapenv:Header/><soapenv:Body><tem:Divide><tem:intA>${properties.synapse.intA}</tem:intA><tem:intB>${properties.synapse.intB}</tem:intB></tem:Divide></soapenv:Body></soapenv:Envelope></format>
+            </payloadFactory>
+            <property name="TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="messageType" scope="axis2" type="STRING" value="text/xml"/>
+            <property name="ContentType" scope="axis2" type="STRING" value="text/xml"/>
+            <header name="Action" value="http://tempuri.org/Divide"/>
+            <property name="backendStage" scope="default" type="STRING" value="SOAP"/>
+            <log category="INFO">
+                <message>BACKEND_CALL</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="backend" value="dneonline Calculator.Divide"/>
+                <property name="customerId" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <call>
+                <endpoint key="CalculatorSoapEP"/>
+            </call>
+
+            <!-- SOAP -> REST/JSON. The script builds the response envelope and extracts the result / fault code. -->
+            <script language="js"><![CDATA[
+                // Build the envelope fully (cached) before reading it, otherwise the stream is consumed
+                // and the following JSON payloadFactory cannot detach the SOAP body.
+                var env = mc.getEnvelope();
+                env.build();
+                var xml = String(env.toString());
+                var r = /<(?:\w+:)?DivideResult>\s*(-?\d+)\s*<\/(?:\w+:)?DivideResult>/.exec(xml);
+                var f = /<faultcode>([^<]*)<\/faultcode>/.exec(xml);
+                mc.setProperty("soapFaultCode", f ? f[1] : "-");
+                if (r === null) {
+                    mc.setProperty("soapOk", "false");
+                } else {
+                    var installment = parseInt(r[1], 10);
+                    var maxAff = parseFloat(mc.getProperty("maxAffordable"));
+                    var disposable = parseFloat(mc.getProperty("disposableIncome"));
+                    var eligible = disposable > 0 && installment <= maxAff;
+                    mc.setProperty("soapOk", "true");
+                    mc.setProperty("installment", String(installment));
+                    mc.setProperty("eligible", eligible ? "true" : "false");
+                    mc.setProperty("reason", eligible
+                        ? "Monthly installment is within 50% of disposable income"
+                        : (disposable <= 0 ? "No disposable income after existing obligations"
+                                           : "Monthly installment exceeds 50% of disposable income"));
+                }
+            ]]></script>
+            <property name="backendStatus" scope="default" type="STRING" expression="${properties.axis2.HTTP_SC}"/>
+            <filter xpath="${properties.synapse.soapOk == 'true'}">
+                <then/>
+                <else>
+                    <log category="WARN">
+                        <message>SOAP_FAULT</message>
+                        <property name="requestId" expression="${properties.synapse.requestId}"/>
+                        <property name="backendStatus" expression="${properties.synapse.backendStatus}"/>
+                        <property name="faultcode" expression="${properties.synapse.soapFaultCode}"/>
+                    </log>
+                    <property name="httpStatus" scope="default" type="STRING" value="502"/>
+                    <property name="errCode" scope="default" type="STRING" value="UPSTREAM_FAULT"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Eligibility service could not process the request"/>
+                    <sequence key="ErrorSequence"/>
+                </else>
+            </filter>
+            <payloadFactory media-type="json" template-type="default">
+                <format>{"customerId":"${properties.synapse.customerId}","eligible":${properties.synapse.eligible},"monthlyInstallment":${properties.synapse.installment},"maxAffordableInstallment":${properties.synapse.maxAffordable},"disposableIncome":${properties.synapse.disposableIncome},"currency":"KES","reason":"${properties.synapse.reason}","requestId":"${properties.synapse.requestId}","timestamp":"${properties.synapse.ts}"}</format>
+            </payloadFactory>
+            <log category="INFO">
+                <message>RESPONSE_OUT</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="customerId" expression="${properties.synapse.maskedValue}"/>
+                <property name="eligible" expression="${properties.synapse.eligible}"/>
+                <property name="status" value="200"/>
+            </log>
+            <property name="TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <header name="X-Request-ID" scope="transport" action="set" expression="${properties.synapse.requestId}"/>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <!-- Discard the (possibly unparseable) request/SOAP body so ErrorSequence's script can run -->
+            <payloadFactory media-type="json" template-type="default">
+                <format>{}</format>
+            </payloadFactory>
+            <filter xpath="${properties.synapse.backendStage == 'VALIDATION'}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="400"/>
+                    <property name="errCode" scope="default" type="STRING" value="INVALID_REQUEST"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Request body is not valid JSON"/>
+                </then>
+            </filter>
+            <filter xpath="${properties.synapse.backendStage == 'SOAP'}">
+                <then>
+                    <filter xpath="${properties.synapse.ERROR_CODE == 101504}">
+                        <then>
+                            <property name="httpStatus" scope="default" type="STRING" value="504"/>
+                            <property name="errCode" scope="default" type="STRING" value="BACKEND_TIMEOUT"/>
+                            <property name="errMsg" scope="default" type="STRING" value="Eligibility service did not respond in time"/>
+                        </then>
+                        <else>
+                            <property name="httpStatus" scope="default" type="STRING" value="503"/>
+                            <property name="errCode" scope="default" type="STRING" value="BACKEND_UNAVAILABLE"/>
+                            <property name="errMsg" scope="default" type="STRING" value="Eligibility service is temporarily unavailable"/>
+                        </else>
+                    </filter>
+                </then>
+            </filter>
+            <sequence key="ErrorSequence"/>
+        </faultSequence>
+    </resource>
+</api>

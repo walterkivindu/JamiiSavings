@@ -27,6 +27,7 @@ services:
     environment:
       # Per-environment backend injection (read by endpoints via $SYSTEM:VAR)
       CUSTOMERS_BACKEND_URL: "${CUSTOMERS_BACKEND_URL:-https://jsonplaceholder.typicode.com/users/{uri.var.customerId}}"
+      CALCULATOR_SOAP_URL: "${CALCULATOR_SOAP_URL:-http://www.dneonline.com/calculator.asmx}"
     ports:
       - "8290:8290"   # HTTP passthrough
       - "8253:8253"   # HTTPS passthrough
