@@ -17,6 +17,11 @@ password = "wso2carbon"     # secret-detector:ignore
 alias = "symmetric.key.value"
 algorithm = "AES"
 
+# Endpoint <timeout> values are enforced by Synapse's TimeoutHandler, which by default only
+# sweeps every 15 s. Sweep every 1 s so the 5 s / 10 s endpoint timeouts are honoured.
+[synapse_properties]
+'synapse.timeout_handler_interval' = 1000
+
 ## Following are set of example configs. Please refer docs for complete set of configurations.
 
 # [transport.http]

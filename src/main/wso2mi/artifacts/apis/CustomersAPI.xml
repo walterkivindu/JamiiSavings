@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/customers" name="CustomersAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="GET" uri-template="/{customerId}">
+        <inSequence>
+            <sequence key="InitSequence"/>
+            <!-- Correlation ID: honour the caller's, otherwise mint one (= requestId) -->
+            <property name="correlationId" scope="default" type="STRING"
+                expression="${exists(headers[&quot;X-Correlation-ID&quot;]) ? headers[&quot;X-Correlation-ID&quot;] : properties.synapse.requestId}"/>
+            <property name="maskInput" scope="default" type="STRING" expression="${params.pathParams.customerId}"/>
+            <sequence key="MaskSequence"/>
+            <log category="INFO">
+                <message>REQUEST_IN</message>
+                <property name="api" value="CustomersAPI"/>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="correlationId" expression="${properties.synapse.correlationId}"/>
+                <property name="customerId" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <filter regex="^[0-9]{1,9}$" source="${params.pathParams.customerId}">
+                <then/>
+                <else>
+                    <property name="httpStatus" scope="default" type="STRING" value="400"/>
+                    <property name="errCode" scope="default" type="STRING" value="INVALID_CUSTOMER_ID"/>
+                    <property name="errMsg" scope="default" type="STRING" value="customerId must be a positive integer"/>
+                    <sequence key="ErrorSequence"/>
+                </else>
+            </filter>
+            <!-- Strip ALL inbound transport headers (Authorization, X-JWT-Assertion, X-Internal-*, Cookie, ...)
+                 so nothing internal reaches the public backend, then set only what the backend needs. -->
+            <property name="TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+    <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <header name="Accept" scope="transport" action="set" value="application/json"/>
+            <header name="X-Correlation-ID" scope="transport" action="set" expression="${properties.synapse.correlationId}"/>
+            <property name="backendStage" scope="default" type="STRING" value="CUSTOMERS"/>
+            <log category="INFO">
+                <message>BACKEND_CALL</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="backend" value="JSONPlaceholder /users"/>
+                <property name="customerId" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <call>
+                <endpoint key="CustomersBackendEP"/>
+            </call>
+            <property name="backendStatus" scope="default" type="STRING" expression="${properties.axis2.HTTP_SC}"/>
+            <filter xpath="${properties.synapse.backendStatus == '404'}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="404"/>
+                    <property name="errCode" scope="default" type="STRING" value="CUSTOMER_NOT_FOUND"/>
+                    <property name="errMsg" scope="default" type="STRING" value="No customer matches the given customerId"/>
+                    <sequence key="ErrorSequence"/>
+                </then>
+            </filter>
+            <filter xpath="${properties.synapse.backendStatus != '200'}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="502"/>
+                    <property name="errCode" scope="default" type="STRING" value="BACKEND_ERROR"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Customer service returned an unexpected response"/>
+                    <sequence key="ErrorSequence"/>
+                </then>
+            </filter>
+            <!-- Drop backend response headers (Set-Cookie, Server, CF-*, Report-To, ...) and return a clean response -->
+            <property name="TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+    <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <header name="X-Correlation-ID" scope="transport" action="set" expression="${properties.synapse.correlationId}"/>
+            <header name="X-Request-ID" scope="transport" action="set" expression="${properties.synapse.requestId}"/>
+            <property name="maskInput" scope="default" type="STRING" expression="${payload.email}"/>
+            <sequence key="MaskSequence"/>
+            <log category="INFO">
+                <message>RESPONSE_OUT</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="status" value="200"/>
+                <property name="email" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <filter xpath="${properties.synapse.ERROR_CODE == 101504}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="504"/>
+                    <property name="errCode" scope="default" type="STRING" value="BACKEND_TIMEOUT"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Customer service did not respond in time"/>
+                </then>
+                <else>
+                    <property name="httpStatus" scope="default" type="STRING" value="503"/>
+                    <property name="errCode" scope="default" type="STRING" value="BACKEND_UNAVAILABLE"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Customer service is temporarily unavailable"/>
+                </else>
+            </filter>
+            <sequence key="ErrorSequence"/>
+        </faultSequence>
+    </resource>
+</api>

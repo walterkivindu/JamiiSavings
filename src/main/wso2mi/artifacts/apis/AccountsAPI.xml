@@ -57,6 +57,10 @@
                 <property name="accountNumber" expression="${properties.synapse.maskedValue}"/>
                 <property name="status" value="200"/>
             </log>
+            <property name="TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+    <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove"/>
+            <header name="X-Request-ID" scope="transport" action="set" expression="${properties.synapse.requestId}"/>
             <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
             <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
             <respond/>

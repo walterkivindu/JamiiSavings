@@ -24,6 +24,9 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    environment:
+      # Per-environment backend injection (read by endpoints via $SYSTEM:VAR)
+      CUSTOMERS_BACKEND_URL: "${CUSTOMERS_BACKEND_URL:-https://jsonplaceholder.typicode.com/users/{uri.var.customerId}}"
     ports:
       - "8290:8290"   # HTTP passthrough
       - "8253:8253"   # HTTPS passthrough
@@ -31,4 +34,5 @@ services:
     volumes:
       - ./target/JamiiSavings_1.0.0.car:/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/JamiiSavings_1.0.0.car:ro
       - ./mi/lib/mysql-connector-j.jar:/home/wso2carbon/wso2mi-4.6.0/lib/mysql-connector-j.jar:ro
+      - ./deployment/deployment.toml:/home/wso2carbon/wso2mi-4.6.0/conf/deployment.toml:ro
       - ./mi/conf/log4j2.properties:/home/wso2carbon/wso2mi-4.6.0/conf/log4j2.properties:ro

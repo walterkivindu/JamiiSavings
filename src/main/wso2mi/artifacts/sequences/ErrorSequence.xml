@@ -22,13 +22,15 @@
         if (!mc.getProperty("httpStatus")) { mc.setProperty("httpStatus", "500"); }
         if (!mc.getProperty("errCode")) { mc.setProperty("errCode", "INTERNAL_ERROR"); }
         if (!mc.getProperty("errMsg")) { mc.setProperty("errMsg", "An unexpected error occurred"); }
-        if (!mc.getProperty("ERROR_MESSAGE")) { mc.setProperty("ERROR_MESSAGE", "-"); }]]>
+        if (!mc.getProperty("ERROR_MESSAGE")) { mc.setProperty("ERROR_MESSAGE", "-"); }
+        if (!mc.getProperty("correlationId")) { mc.setProperty("correlationId", mc.getProperty("requestId")); }]]>
     </script>
     <log category="ERROR" separator="|" logMessageID="false" logFullPayload="false">
         <message>ERROR_RESPONSE</message>
         <property name="requestId" expression="${properties.synapse.requestId}" />
         <property name="status" expression="${properties.synapse.httpStatus}" />
         <property name="code" expression="${properties.synapse.errCode}" />
+        <property name="synapseErrorCode" expression="${exists(properties.synapse.ERROR_CODE) ? properties.synapse.ERROR_CODE : '-'}" />
         <property name="synapseErrorMessage" expression="${properties.synapse.ERROR_MESSAGE}" />
     </log>
     <payloadFactory media-type="json" template-type="default">
@@ -37,5 +39,10 @@
     <property name="HTTP_SC" scope="axis2" type="STRING"
         expression="${properties.synapse.httpStatus}" />
     <property name="messageType" scope="axis2" type="STRING" value="application/json" />
+    <!-- Never echo request/backend headers on an error; return only our tracing headers -->
+    <property name="TRANSPORT_HEADERS" scope="axis2" action="remove" />
+    <property name="EXCESS_TRANSPORT_HEADERS" scope="axis2" action="remove" />
+    <header name="X-Request-ID" scope="transport" action="set" expression="${properties.synapse.requestId}" />
+    <header name="X-Correlation-ID" scope="transport" action="set" expression="${properties.synapse.correlationId}" />
     <respond />
 </sequence>
