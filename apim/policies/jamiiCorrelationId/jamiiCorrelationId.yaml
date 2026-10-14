@@ -1,0 +1,15 @@
+type: operation_policy_specification
+version: v4.7.0
+data:
+  category: Mediation
+  name: jamiiCorrelationId
+  version: v1
+  displayName: Jamii Correlation ID
+  description: Injects X-Correlation-ID at the gateway when the caller did not send one, and strips debug/internal headers before the request reaches MI.
+  applicableFlows:
+  - request
+  supportedGateways:
+  - Synapse
+  supportedApiTypes:
+  - HTTP
+  policyAttributes: []

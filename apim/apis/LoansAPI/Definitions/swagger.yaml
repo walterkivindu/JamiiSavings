@@ -1,0 +1,94 @@
+openapi: 3.0.1
+info:
+  title: LoansAPI
+  version: v1
+  description: |
+    Jamii Savings loan eligibility check. WSO2 MI converts the JSON request to a SOAP call
+    (DNE Online Calculator.Divide) and maps the SOAP response, or SOAP Fault, back to JSON.
+servers:
+  - url: https://localhost:8243/loans/v1
+paths:
+  /eligibility:
+    post:
+      summary: Check loan eligibility
+      operationId: checkEligibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EligibilityRequest'
+            example:
+              customerId: CUST-1001
+              monthlyIncome: 120000
+              monthlyObligations: 20000
+              requestedAmount: 500000
+              termMonths: 12
+      responses:
+        '200':
+          description: Eligibility decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityResponse'
+              example:
+                customerId: CUST-1001
+                eligible: true
+                monthlyInstallment: 41667
+                maxAffordableInstallment: 50000
+                disposableIncome: 100000
+                currency: KES
+                reason: Monthly installment is within 50% of disposable income
+                requestId: 9a7675c0-b728-4bc2-a21d-2b63693208b1
+                timestamp: '2026-10-14T10:52:35.754Z'
+        '400':
+          $ref: '#/components/responses/Error'
+        '502':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '504':
+          $ref: '#/components/responses/Error'
+components:
+  schemas:
+    EligibilityRequest:
+      type: object
+      required: [customerId, monthlyIncome, monthlyObligations, requestedAmount, termMonths]
+      properties:
+        customerId: { type: string, example: CUST-1001 }
+        monthlyIncome: { type: number, minimum: 0, description: KES per month }
+        monthlyObligations: { type: number, minimum: 0, description: "Existing repayments, KES per month" }
+        requestedAmount: { type: integer, minimum: 1, maximum: 1000000000000, description: KES }
+        termMonths: { type: integer, minimum: 1, maximum: 360 }
+    EligibilityResponse:
+      type: object
+      properties:
+        customerId: { type: string }
+        eligible: { type: boolean }
+        monthlyInstallment: { type: number }
+        maxAffordableInstallment: { type: number }
+        disposableIncome: { type: number }
+        currency: { type: string, example: KES }
+        reason: { type: string }
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId, timestamp]
+          properties:
+            code:
+              type: string
+              enum: [INVALID_REQUEST, UPSTREAM_FAULT, BACKEND_UNAVAILABLE, BACKEND_TIMEOUT, INTERNAL_ERROR]
+            message: { type: string }
+            requestId: { type: string, format: uuid }
+            timestamp: { type: string, format: date-time }
+  responses:
+    Error:
+      description: Error in the shared Jamii envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

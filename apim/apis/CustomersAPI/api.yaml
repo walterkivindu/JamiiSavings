@@ -1,0 +1,38 @@
+type: api
+version: v4.7.0
+data:
+  name: CustomersAPI
+  description: |
+    Jamii Savings customer profile. Managed proxy (WSO2 MI) in front of JSONPlaceholder /users/{id}.
+    Adds/propagates X-Correlation-ID, strips internal headers, 5 s backend timeout.
+  context: /customers
+  version: v1
+  provider: admin
+  lifeCycleStatus: PUBLISHED
+  isRevision: false
+  revisionId: 0
+  type: HTTP
+  transport:
+  - http
+  - https
+  policies:
+  - Gold
+  securityScheme:
+  - oauth2
+  - api_key
+  - oauth_basic_auth_api_key_mandatory
+  tags:
+  - jamii
+  - customers
+  visibility: PUBLIC
+  endpointConfig:
+    endpoint_type: http
+    production_endpoints:
+      url: http://mi:8290/customers
+      config:
+        actionDuration: "30000"
+        actionSelect: fault
+    sandbox_endpoints:
+      url: http://mi:8290/customers
+  endpointImplementationType: ENDPOINT
+  websubSubscriptionConfiguration: null

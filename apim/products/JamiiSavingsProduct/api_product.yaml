@@ -1,0 +1,121 @@
+type: api_product
+version: v4.7.0
+data:
+  name: JamiiSavingsProduct
+  displayName: JamiiSavingsProduct
+  context: /jamii
+  version: v1
+  description: "Jamii Savings: accounts, customers and loan eligibility as one subscribable product."
+  provider: admin
+  hasThumbnail: false
+  state: PUBLISHED
+  enableSchemaValidation: false
+  isDefaultVersion: true
+  isRevision: false
+  revisionId: 0
+  responseCachingEnabled: false
+  cacheTimeout: 300
+  visibility: PUBLIC
+  visibleRoles: []
+  visibleTenants: []
+  accessControl: NONE
+  accessControlRoles: []
+  transport:
+   - http
+   - https
+  tags: []
+  policies:
+   - Silver
+  authorizationHeader: Authorization
+  apiKeyHeader: ApiKey
+  securityScheme:
+   - api_key
+   - oauth_basic_auth_api_key_mandatory
+   - oauth2
+  subscriptionAvailability: ALL_TENANTS
+  subscriptionAvailableTenants: []
+  additionalProperties: []
+  additionalPropertiesMap: {}
+  businessInformation: {}
+  corsConfiguration:
+    corsConfigurationEnabled: false
+    accessControlAllowOrigins:
+     - '*'
+    accessControlAllowCredentials: false
+    accessControlAllowHeaders:
+     - authorization
+     - Access-Control-Allow-Origin
+     - Content-Type
+     - SOAPAction
+     - apikey
+     - Internal-Key
+    accessControlAllowMethods:
+     - GET
+     - PUT
+     - POST
+     - DELETE
+     - PATCH
+     - OPTIONS
+  gatewayVendor: wso2
+  apis:
+   -
+    name: CustomersAPI
+    version: v1
+    operations:
+     -
+      id: ""
+      target: "/{customerId}"
+      verb: GET
+      authType: Application & Application User
+      throttlingPolicy: Unlimited
+      scopes: []
+      usedProductIds: []
+      operationPolicies:
+        request: []
+        response: []
+        fault: []
+      operationHubPolicies: []
+   -
+    name: LoansAPI
+    version: v1
+    operations:
+     -
+      id: ""
+      target: /eligibility
+      verb: POST
+      authType: Application & Application User
+      throttlingPolicy: Unlimited
+      scopes: []
+      usedProductIds: []
+      operationPolicies:
+        request: []
+        response: []
+        fault: []
+      operationHubPolicies: []
+   -
+    name: AccountsAPI
+    version: v1
+    operations:
+     -
+      id: ""
+      target: "/{accountNumber}/balance"
+      verb: GET
+      authType: Application & Application User
+      throttlingPolicy: Unlimited
+      scopes: []
+      usedProductIds: []
+      operationPolicies:
+        request:
+         -
+          policyName: jamiiCorrelationId
+          policyVersion: v1
+          policyType: common
+          parameters: {}
+        response: []
+        fault: []
+      operationHubPolicies: []
+  scopes: []
+  categories: []
+  audiences:
+   - all
+  egress: false

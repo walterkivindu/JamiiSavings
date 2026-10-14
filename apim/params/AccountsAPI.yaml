@@ -1,0 +1,22 @@
+# apictl params for AccountsAPI: environment-specific overrides applied at import time.
+environments:
+  - name: dev
+    configs:
+      endpoints:
+        production:
+          url: http://mi:8290/accounts
+        sandbox:
+          url: http://mi:8290/accounts
+      deploymentEnvironments:
+        - displayOnDevportal: true
+          deploymentEnvironment: Default
+  - name: prod
+    configs:
+      endpoints:
+        production:
+          url: https://mi.prod.jamii.internal:8253/accounts
+        sandbox:
+          url: https://mi.prod.jamii.internal:8253/accounts
+      deploymentEnvironments:
+        - displayOnDevportal: true
+          deploymentEnvironment: Default

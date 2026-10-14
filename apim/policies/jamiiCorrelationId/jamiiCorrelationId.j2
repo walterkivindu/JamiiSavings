@@ -1,0 +1,12 @@
+<filter source="boolean($trp:X-Correlation-ID)" regex="false">
+    <then>
+        <header name="X-Correlation-ID" scope="transport" expression="fn:substring-after(get-property('MessageID'), 'urn:uuid:')"/>
+    </then>
+</filter>
+<header name="X-Debug" scope="transport" action="remove"/>
+<header name="X-Internal-Token" scope="transport" action="remove"/>
+<property name="jamii.correlationId" expression="$trp:X-Correlation-ID"/>
+<log level="custom">
+    <property name="JAMII_GW" value="correlation"/>
+    <property name="correlationId" expression="$trp:X-Correlation-ID"/>
+</log>

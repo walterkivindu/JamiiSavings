@@ -37,3 +37,21 @@ services:
       - ./mi/lib/mysql-connector-j.jar:/home/wso2carbon/wso2mi-4.6.0/lib/mysql-connector-j.jar:ro
       - ./deployment/deployment.toml:/home/wso2carbon/wso2mi-4.6.0/conf/deployment.toml:ro
       - ./mi/conf/log4j2.properties:/home/wso2carbon/wso2mi-4.6.0/conf/log4j2.properties:ro
+
+  # API Manager 4.7.0 (all-in-one: Publisher, Dev Portal, Key Manager, Gateway).
+  # Opt-in because it needs ~2-3 GB RAM:  docker compose --profile apim up -d
+  apim:
+    image: wso2/wso2am:4.7.0
+    container_name: jamii-apim
+    profiles: ["apim"]
+    ports:
+      - "9443:9443"   # Publisher / Dev Portal / Admin / REST APIs
+      - "8243:8243"   # Gateway HTTPS
+      - "8280:8280"   # Gateway HTTP
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -skf https://localhost:9443/services/Version > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s

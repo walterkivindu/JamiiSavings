@@ -1,0 +1,50 @@
+type: api
+version: v4.7.0
+data:
+  name: AccountsAPI
+  description: |
+    Jamii Savings account balance lookup. Backed by WSO2 MI (data service over MySQL).
+    Account numbers are 10 digits. Errors use the shared Jamii error envelope.
+  context: /accounts
+  version: v1
+  provider: admin
+  lifeCycleStatus: PUBLISHED
+  isRevision: false
+  revisionId: 0
+  type: HTTP
+  transport:
+  - http
+  - https
+  policies:
+  - Gold
+  securityScheme:
+  - oauth2
+  - oauth_basic_auth_api_key_mandatory
+  tags:
+  - jamii
+  - accounts
+  visibility: PUBLIC
+  endpointConfig:
+    endpoint_type: http
+    production_endpoints:
+      url: http://mi:8290/accounts
+      config:
+        actionDuration: "30000"
+        actionSelect: fault
+    sandbox_endpoints:
+      url: http://mi:8290/accounts
+  endpointImplementationType: ENDPOINT
+  websubSubscriptionConfiguration: null
+  operations:
+  - target: /{accountNumber}/balance
+    verb: GET
+    authType: Application & Application User
+    throttlingPolicy: Unlimited
+    operationPolicies:
+      request:
+      - policyName: jamiiCorrelationId
+        policyVersion: v1
+        policyType: common
+        parameters: {}
+      response: []
+      fault: []

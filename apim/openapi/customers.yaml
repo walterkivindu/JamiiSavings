@@ -1,0 +1,97 @@
+openapi: 3.0.1
+info:
+  title: CustomersAPI
+  version: v1
+  description: |
+    Jamii Savings customer profile. Managed proxy (WSO2 MI) in front of JSONPlaceholder /users/{id}.
+    Adds/propagates X-Correlation-ID, strips internal headers, 5 s backend timeout.
+servers:
+  - url: https://localhost:8243/customers/v1
+paths:
+  /{customerId}:
+    get:
+      summary: Get a customer profile
+      operationId: getCustomer
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9]{1,9}$'
+            example: '1'
+        - name: X-Correlation-ID
+          in: header
+          required: false
+          description: Caller correlation ID; echoed back, generated if absent
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer found
+          headers:
+            X-Correlation-ID:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '502':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+        '504':
+          $ref: '#/components/responses/Error'
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string }
+        username: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        website: { type: string }
+        address:
+          type: object
+          properties:
+            street: { type: string }
+            suite: { type: string }
+            city: { type: string }
+            zipcode: { type: string }
+            geo:
+              type: object
+              properties:
+                lat: { type: string }
+                lng: { type: string }
+        company:
+          type: object
+          properties:
+            name: { type: string }
+            catchPhrase: { type: string }
+            bs: { type: string }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId, timestamp]
+          properties:
+            code:
+              type: string
+              enum: [INVALID_CUSTOMER_ID, CUSTOMER_NOT_FOUND, BACKEND_ERROR, BACKEND_UNAVAILABLE, BACKEND_TIMEOUT, INTERNAL_ERROR]
+            message: { type: string }
+            requestId: { type: string, format: uuid }
+            timestamp: { type: string, format: date-time }
+  responses:
+    Error:
+      description: Error in the shared Jamii envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

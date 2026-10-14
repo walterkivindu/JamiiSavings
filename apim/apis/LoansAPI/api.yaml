@@ -1,0 +1,37 @@
+type: api
+version: v4.7.0
+data:
+  name: LoansAPI
+  description: |
+    Jamii Savings loan eligibility check. WSO2 MI converts the JSON request to a SOAP call
+    (DNE Online Calculator.Divide) and maps the SOAP response, or SOAP Fault, back to JSON.
+  context: /loans
+  version: v1
+  provider: admin
+  lifeCycleStatus: PUBLISHED
+  isRevision: false
+  revisionId: 0
+  type: HTTP
+  transport:
+  - http
+  - https
+  policies:
+  - JamiiSoapLimited
+  securityScheme:
+  - api_key
+  - oauth_basic_auth_api_key_mandatory
+  tags:
+  - jamii
+  - loans
+  visibility: PUBLIC
+  endpointConfig:
+    endpoint_type: http
+    production_endpoints:
+      url: http://mi:8290/loans
+      config:
+        actionDuration: "30000"
+        actionSelect: fault
+    sandbox_endpoints:
+      url: http://mi:8290/loans
+  endpointImplementationType: ENDPOINT
+  websubSubscriptionConfiguration: null

@@ -1,0 +1,27 @@
+type: throttling policy
+subtype: subscription policy
+version: v4.7.0
+data:
+  policyName: JamiiSoapLimited
+  displayName: JamiiSoapLimited
+  description: 10 requests per minute. For APIs that fan out to slow or third-party backends (LoansAPI -> public SOAP service).
+  type: SubscriptionThrottlePolicy
+  graphQLMaxComplexity: 0
+  graphQLMaxDepth: 0
+  defaultLimit:
+    type: REQUESTCOUNTLIMIT
+    requestCount:
+      timeUnit: min
+      unitTime: 1
+      requestCount: 10
+    bandwidth: null
+    eventCount: null
+    aiApiQuota: null
+  monetization: null
+  rateLimitCount: 0
+  rateLimitTimeUnit: null
+  subscriberCount: 0
+  customAttributes: []
+  stopOnQuotaReach: true
+  billingPlan: FREE
+  permissions: null
