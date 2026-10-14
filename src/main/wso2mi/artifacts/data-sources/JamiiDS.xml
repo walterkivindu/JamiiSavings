@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datasource>
+    <name>JamiiDS</name>
+    <description>Jamii Savings core accounts DB (MySQL 8)</description>
+    <jndiConfig useDataSourceFactory="false">
+        <name>jdbc/JamiiDS</name>
+    </jndiConfig>
+    <definition type="RDBMS">
+        <configuration>
+            <driverClassName>com.mysql.cj.jdbc.Driver</driverClassName>
+            <url>jdbc:mysql://mysql:3306/jamii?useSSL=false&amp;allowPublicKeyRetrieval=true&amp;connectTimeout=3000&amp;socketTimeout=5000</url>
+            <username>jamii</username>
+            <password>jamiipw</password>
+            <maxActive>10</maxActive>
+            <maxWait>3000</maxWait>
+            <testOnBorrow>true</testOnBorrow>
+            <validationQuery>SELECT 1</validationQuery>
+            <validationInterval>5000</validationInterval>
+        </configuration>
+    </definition>
+</datasource>

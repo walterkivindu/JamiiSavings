@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/accounts" name="AccountsAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="GET" uri-template="/{accountNumber}/balance">
+        <inSequence>
+            <sequence key="InitSequence"/>
+            <property name="maskInput" scope="default" type="STRING" expression="${params.pathParams.accountNumber}"/>
+            <sequence key="MaskSequence"/>
+            <log category="INFO">
+                <message>REQUEST_IN</message>
+                <property name="api" value="AccountsAPI"/>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="accountNumber" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <filter regex="^[0-9]{10}$" source="${params.pathParams.accountNumber}">
+                <then/>
+                <else>
+                    <property name="httpStatus" scope="default" type="STRING" value="400"/>
+                    <property name="errCode" scope="default" type="STRING" value="INVALID_ACCOUNT_NUMBER"/>
+                    <property name="errMsg" scope="default" type="STRING" value="accountNumber must be exactly 10 digits"/>
+                    <sequence key="ErrorSequence"/>
+                </else>
+            </filter>
+            <property name="backendStage" scope="default" type="STRING" value="DB"/>
+            <header name="Accept" scope="transport" action="set" value="application/json"/>
+            <log category="INFO">
+                <message>BACKEND_CALL</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="backend" value="AccountDataService"/>
+                <property name="accountNumber" expression="${properties.synapse.maskedValue}"/>
+            </log>
+            <call>
+                <endpoint key="AccountDataServiceEP"/>
+            </call>
+            <property name="dsStatus" scope="default" type="STRING" expression="${properties.axis2.HTTP_SC}"/>
+            <filter xpath="${properties.synapse.dsStatus != '200'}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="503"/>
+                    <property name="errCode" scope="default" type="STRING" value="DB_UNAVAILABLE"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Account data store is temporarily unavailable"/>
+                    <sequence key="ErrorSequence"/>
+                </then>
+            </filter>
+            <filter xpath="${not(exists(payload.accounts.account))}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="404"/>
+                    <property name="errCode" scope="default" type="STRING" value="ACCOUNT_NOT_FOUND"/>
+                    <property name="errMsg" scope="default" type="STRING" value="No account matches the given account number"/>
+                    <sequence key="ErrorSequence"/>
+                </then>
+            </filter>
+            <payloadFactory media-type="json" template-type="default">
+                <format>{"accountNumber":"${payload.accounts.account[0].accountNumber}","status":"${payload.accounts.account[0].status}","balance":{"amount":${payload.accounts.account[0].balance},"currency":"${payload.accounts.account[0].currency}"},"requestId":"${properties.synapse.requestId}","timestamp":"${properties.synapse.ts}"}</format>
+            </payloadFactory>
+            <log category="INFO">
+                <message>RESPONSE_OUT</message>
+                <property name="requestId" expression="${properties.synapse.requestId}"/>
+                <property name="accountNumber" expression="${properties.synapse.maskedValue}"/>
+                <property name="status" value="200"/>
+            </log>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+            <property name="messageType" scope="axis2" type="STRING" value="application/json"/>
+            <respond/>
+        </inSequence>
+        <faultSequence>
+            <filter xpath="${properties.synapse.backendStage == 'DB'}">
+                <then>
+                    <property name="httpStatus" scope="default" type="STRING" value="503"/>
+                    <property name="errCode" scope="default" type="STRING" value="DB_UNAVAILABLE"/>
+                    <property name="errMsg" scope="default" type="STRING" value="Account data store is temporarily unavailable"/>
+                </then>
+            </filter>
+            <sequence key="ErrorSequence"/>
+        </faultSequence>
+    </resource>
+</api>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<data name="AccountDataService" serviceNamespace="http://jamii.bank/ds/accounts" transports="http https">
+    <description>Read-only account lookup used by AccountsAPI. Internal only, not exposed through APIM.</description>
+    <config id="JamiiDS">
+        <property name="carbon_datasource_name">JamiiDS</property>
+    </config>
+    <query id="getAccountByNumber" useConfig="JamiiDS">
+        <sql>SELECT account_number, status, balance, currency FROM accounts WHERE account_number = ?</sql>
+        <param name="accountNumber" ordinal="1" sqlType="STRING" type="IN"/>
+        <result outputType="json">{"accounts":{"account":[{"accountNumber":"$account_number","status":"$status","balance":"$balance(type:decimal)","currency":"$currency"}]}}</result>
+    </query>
+    <resource method="GET" path="account/{accountNumber}">
+        <call-query href="getAccountByNumber">
+            <with-param name="accountNumber" query-param="accountNumber"/>
+        </call-query>
+    </resource>
+</data>

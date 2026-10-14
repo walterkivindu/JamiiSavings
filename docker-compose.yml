@@ -31,3 +31,4 @@ services:
     volumes:
       - ./target/JamiiSavings_1.0.0.car:/home/wso2carbon/wso2mi-4.6.0/repository/deployment/server/carbonapps/JamiiSavings_1.0.0.car:ro
       - ./mi/lib/mysql-connector-j.jar:/home/wso2carbon/wso2mi-4.6.0/lib/mysql-connector-j.jar:ro
+      - ./mi/conf/log4j2.properties:/home/wso2carbon/wso2mi-4.6.0/conf/log4j2.properties:ro

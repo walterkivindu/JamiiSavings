@@ -21,7 +21,8 @@
         if (!mc.getProperty("ts")) { mc.setProperty("ts", new Date().toISOString()); }
         if (!mc.getProperty("httpStatus")) { mc.setProperty("httpStatus", "500"); }
         if (!mc.getProperty("errCode")) { mc.setProperty("errCode", "INTERNAL_ERROR"); }
-        if (!mc.getProperty("errMsg")) { mc.setProperty("errMsg", "An unexpected error occurred"); }]]>
+        if (!mc.getProperty("errMsg")) { mc.setProperty("errMsg", "An unexpected error occurred"); }
+        if (!mc.getProperty("ERROR_MESSAGE")) { mc.setProperty("ERROR_MESSAGE", "-"); }]]>
     </script>
     <log category="ERROR" separator="|" logMessageID="false" logFullPayload="false">
         <message>ERROR_RESPONSE</message>
