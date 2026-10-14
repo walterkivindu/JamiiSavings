@@ -20,7 +20,12 @@ if [[ ! -x "$BIN_DIR/apictl" ]]; then
 fi
 mkdir -p "$ROOT/tools/.apictl-home"
 
+# Join the compose network when it exists (needed to reach APIM); offline commands like
+# `bundle` run before the stack is up, so fall back to the default bridge network.
+NET="${COMPOSE_NETWORK:-${COMPOSE_PROJECT_NAME:-jamiisavings}_default}"
+docker network inspect "$NET" >/dev/null 2>&1 || NET=bridge
+
 MSYS_NO_PATHCONV=1 docker run --rm -i \
-  --network "${COMPOSE_NETWORK:-jamiisavings_default}" \
+  --network "$NET" \
   -v "$ROOT:/work" -v "$ROOT/tools/.apictl-home:/root" -w /work \
   debian:bookworm-slim /work/tools/linux/apictl/apictl "$@"
