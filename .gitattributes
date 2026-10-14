@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.jks binary
+*.jar binary
+*.car binary
+*.cmd text eol=crlf
